@@ -1,6 +1,10 @@
 // ScanBuddy: Helping Kids Prepare for Medical Imaging
 package com.example.scanbuddy
-
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -81,57 +85,72 @@ class MainActivity : ComponentActivity() {
 // -----------------------------
 // App + Navigation
 // -----------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanBuddyApp() {
     val nav = rememberNavController()
+    val backStack by nav.currentBackStackEntryAsState()
+    val route = backStack?.destination?.route ?: "welcome"
+
+    val title = when {
+        route == "welcome" -> "ScanBuddy"
+        route == "choose" -> "Choose your scan"
+        route.startsWith("story/") -> "Scan Guide"
+        route.startsWith("practice/") -> "Stay Still Challenge"
+        route == "congrats" -> "Great job!"
+        else -> "ScanBuddy"
+    }
     MaterialTheme(colorScheme = lightColorScheme()) {
-        Surface(Modifier.fillMaxSize()) {
-            NavHost(navController = nav, startDestination = "welcome") {
+        Scaffold(
+            topBar = { CenterAlignedTopAppBar(title = { Text(title) }) }
+        ) { innerPadding ->
+            Surface(Modifier.fillMaxSize().padding(innerPadding)) {
+                NavHost(navController = nav, startDestination = "welcome") {
 
-                composable("welcome") {
-                    WelcomeScreen(onStart = { nav.navigate("choose") })
-                }
+                    composable("welcome") {
+                        WelcomeScreen(onStart = { nav.navigate("choose") })
+                    }
 
-                composable("choose") {
-                    ChooseScanScreen(onSelect = { type ->
-                        nav.navigate("story/${type.name}")  // Pass scan type name
-                    })
-                }
+                    composable("choose") {
+                        ChooseScanScreen(onSelect = { type ->
+                            nav.navigate("story/${type.name}")
+                        })
+                    }
 
-                composable("story/{type}") { backStack ->
-                    val typeArg = backStack.arguments?.getString("type") ?: "MRI"
-                    val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
-                    StoryScreen(
-                        type = type,
-                        onPractice = { nav.navigate("practice/${type.name}") },
-                        onDone = { nav.navigate("congrats") }
-                    )
-                }
+                    composable("story/{type}") { backStack ->
+                        val typeArg = backStack.arguments?.getString("type") ?: "MRI"
+                        val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
+                        StoryScreen(
+                            type = type,
+                            onPractice = { nav.navigate("practice/${type.name}") },
+                            onDone = { nav.navigate("congrats") }
+                        )
+                    }
 
-                composable("practice/{type}") { backStack ->
-                    val typeArg = backStack.arguments?.getString("type") ?: "MRI"
-                    val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
-                    StillnessPracticeScreen(
-                        title = "Stay Still Challenge",
-                        secondsGoal = 15,
-                        hint = when (type) {
-                            ScanType.MRI -> "Be still like a statue in the tunnel!"
-                            ScanType.CT -> "Ride the donut like a statue!"
-                            ScanType.XRAY -> "Freeze for a quick photo!"
-                            ScanType.ULTRASOUND -> "Relax and watch the wavy movie!"
-                        },
-                        onFinished = { nav.navigate("congrats") }
-                    )
-                }
+                    composable("practice/{type}") { backStack ->
+                        val typeArg = backStack.arguments?.getString("type") ?: "MRI"
+                        val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
+                        StillnessPracticeScreen(
+                            title = "Stay Still Challenge",
+                            secondsGoal = 15,
+                            hint = when (type) {
+                                ScanType.MRI -> "Be still like a statue in the tunnel!"
+                                ScanType.CT -> "Ride the donut like a statue!"
+                                ScanType.XRAY -> "Freeze for a quick photo!"
+                                ScanType.ULTRASOUND -> "Relax and watch the wavy movie!"
+                            },
+                            onFinished = { nav.navigate("congrats") }
+                        )
+                    }
 
-                composable("congrats") {
-                    CongratsScreen(onRestart = { nav.navigate("choose") })
+                    composable("congrats") {
+                        CongratsScreen(onRestart = { nav.navigate("choose") })
+                    }
                 }
             }
         }
     }
 }
-
 // -----------------------------
 // Screens
 // -----------------------------
@@ -149,16 +168,14 @@ fun WelcomeScreen(onStart: () -> Unit) {
         Button(onClick = onStart) { Text("Let’s Begin!") }
     }
 }
-
 @Composable
 fun ChooseScanScreen(onSelect: (ScanType) -> Unit) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Choose your scan", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -167,7 +184,7 @@ fun ChooseScanScreen(onSelect: (ScanType) -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
-                        .clickable { onSelect(type) } // <-- this makes the cards work!
+                        .clickable { onSelect(type) }
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -181,10 +198,11 @@ fun ChooseScanScreen(onSelect: (ScanType) -> Unit) {
     }
 }
 
+
 @Composable
 fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
-    var currentSlide by remember { mutableStateOf(0) }
+    var currentSlide by remember { mutableIntStateOf(0) }
     val slides = scanSlides[type] ?: emptyList()
 
     // Audio player (play/stop demo sound)
@@ -231,7 +249,7 @@ fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFin
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val accelerometer = remember { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
 
-    var stillSeconds by remember { mutableStateOf(0f) }
+    var stillSeconds by remember { mutableFloatStateOf(0f) }
     var isStill by remember { mutableStateOf(true) }
     val movementThreshold = 0.7f // sensitivity
 
