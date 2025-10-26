@@ -1,5 +1,9 @@
 // ScanBuddy: Helping Kids Prepare for Medical Imaging
 package com.example.scanbuddy
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Scaffold
@@ -17,6 +21,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -27,6 +32,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -37,18 +43,23 @@ import androidx.navigation.compose.rememberNavController
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
+import androidx.annotation.DrawableRes
 
 // -----------------------------
 // Data
 // -----------------------------
-enum class ScanType(val title: String, val emoji: String, val soundResName: String) {
-    MRI("MRI", "🧲", "mri_demo"),
-    CT("CT Scan", "💫", "ct_demo"),
-    XRAY("X-Ray", "⚡", "xray_demo"),
-    ULTRASOUND("Ultrasound", "\uD83D\uDC42", "ultrasound_demo");
+enum class ScanType(
+    val title: String,
+    val emoji: String,
+    val soundResName: String,
+    @DrawableRes val imageRes: Int
+) {
+    MRI("MRI", "🧲", "mri_demo", R.drawable.bear_mri),
+    CT("CT Scan", "💫", "ct_demo", R.drawable.bear_ct),
+    XRAY("X-Ray", "⚡", "xray_demo", R.drawable.bear_xray),
+    ULTRASOUND("Ultrasound", "\uD83D\uDC42", "ultrasound_demo", R.drawable.bear_ultrasound);
 }
 
-// Simple copy for per-scan text slides
 val scanSlides: Map<ScanType, List<String>> = mapOf(
     ScanType.MRI to listOf(
         "You’ll lie very still like a statue while pictures are taken.",
@@ -100,23 +111,42 @@ fun ScanBuddyApp() {
         route == "congrats" -> "Great job!"
         else -> "ScanBuddy"
     }
+
     MaterialTheme(colorScheme = lightColorScheme()) {
         Scaffold(
-            topBar = { CenterAlignedTopAppBar(title = { Text(title) }) }
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text(title) },
+                    navigationIcon = {
+                        if (route != "welcome") {
+                            IconButton(
+                                onClick = {
+                                    nav.navigate("welcome") {
+                                        popUpTo(nav.graph.startDestinationId) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Home,
+                                    contentDescription = "Home"
+                                )
+                            }
+                        }
+                    }
+                )
+            }
         ) { innerPadding ->
             Surface(Modifier.fillMaxSize().padding(innerPadding)) {
                 NavHost(navController = nav, startDestination = "welcome") {
-
                     composable("welcome") {
                         WelcomeScreen(onStart = { nav.navigate("choose") })
                     }
-
                     composable("choose") {
                         ChooseScanScreen(onSelect = { type ->
                             nav.navigate("story/${type.name}")
                         })
                     }
-
                     composable("story/{type}") { backStack ->
                         val typeArg = backStack.arguments?.getString("type") ?: "MRI"
                         val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
@@ -126,7 +156,6 @@ fun ScanBuddyApp() {
                             onDone = { nav.navigate("congrats") }
                         )
                     }
-
                     composable("practice/{type}") { backStack ->
                         val typeArg = backStack.arguments?.getString("type") ?: "MRI"
                         val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
@@ -142,7 +171,6 @@ fun ScanBuddyApp() {
                             onFinished = { nav.navigate("congrats") }
                         )
                     }
-
                     composable("congrats") {
                         CongratsScreen(onRestart = { nav.navigate("choose") })
                     }
@@ -151,16 +179,27 @@ fun ScanBuddyApp() {
         }
     }
 }
+
 // -----------------------------
 // Screens
 // -----------------------------
 @Composable
 fun WelcomeScreen(onStart: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Optional mascot on welcome
+        Image(
+            painter = painterResource(R.drawable.scanbuddybear),
+            contentDescription = "ScanBuddy bear mascot",
+            modifier = Modifier
+                .size(160.dp)
+        )
+        Spacer(Modifier.height(12.dp))
         Text("Hi! I’m ScanBuddy 👋", fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text("I’ll help you get ready for your scan.", fontSize = 18.sp, textAlign = TextAlign.Center)
@@ -168,36 +207,58 @@ fun WelcomeScreen(onStart: () -> Unit) {
         Button(onClick = onStart) { Text("Let’s Begin!") }
     }
 }
+
 @Composable
 fun ChooseScanScreen(onSelect: (ScanType) -> Unit) {
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp)
+    ) {
+        // Main content (scan options)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            items(ScanType.entries.toList()) { type ->
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clickable { onSelect(type) }
-                ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(type.emoji, fontSize = 28.sp)
-                            Text(type.title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(ScanType.entries.toList()) { type ->
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .clickable { onSelect(type) }
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(type.emoji, fontSize = 28.sp)
+                                Text(type.title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
             }
         }
+
+        // 🧸 Bear peeking at the bottom
+        Image(
+            painter = painterResource(id = R.drawable.scanbuddybear),
+            contentDescription = "ScanBuddy peeking bear",
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(0.5f)
+                .aspectRatio(1.5f)
+                .offset(y = 40.dp)
+        )
     }
 }
-
 
 @Composable
 fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
@@ -205,7 +266,6 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
     var currentSlide by remember { mutableIntStateOf(0) }
     val slides = scanSlides[type] ?: emptyList()
 
-    // Audio player (play/stop demo sound)
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     DisposableEffect(Unit) { onDispose { mediaPlayer?.release(); mediaPlayer = null } }
 
@@ -225,11 +285,31 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("${type.title} Guide", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
+
         ElevatedCard(Modifier.fillMaxWidth().weight(1f)) {
-            Box(Modifier.fillMaxSize().padding(20.dp)) {
-                Text(slides.getOrNull(currentSlide) ?: "", fontSize = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Image(
+                    painter = painterResource(type.imageRes),
+                    contentDescription = "${type.title} demo image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                )
+                Text(
+                    slides.getOrNull(currentSlide) ?: "",
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
+
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { if (currentSlide > 0) currentSlide-- }, enabled = currentSlide > 0) { Text("Back") }
@@ -251,7 +331,7 @@ fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFin
 
     var stillSeconds by remember { mutableFloatStateOf(0f) }
     var isStill by remember { mutableStateOf(true) }
-    val movementThreshold = 0.7f // sensitivity
+    val movementThreshold = 0.7f
 
     DisposableEffect(accelerometer) {
         val listener = object : SensorEventListener {
@@ -284,7 +364,11 @@ fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFin
         animationSpec = tween(400, easing = LinearEasing), label = "progress"
     )
 
-    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
         Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(hint, textAlign = TextAlign.Center)
@@ -299,7 +383,11 @@ fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFin
 
 @Composable
 fun CongratsScreen(onRestart: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text("You did it! 🎉", fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text("You’re ready for your scan.", fontSize = 18.sp, textAlign = TextAlign.Center)
