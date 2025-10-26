@@ -1,6 +1,4 @@
-// ScanBuddy: Helping Kids Prepare for Medical Imaging
 package com.example.scanbuddy
-
 import android.os.Build
 import android.os.Bundle
 import android.content.Context
@@ -45,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.sqrt
 
+
 enum class ScanType(
     val title: String,
     val emoji: String,
@@ -59,8 +58,8 @@ enum class ScanType(
 
 val scanSlides: Map<ScanType, List<String>> = mapOf(
     ScanType.MRI to listOf(
-        "An MRI uses a big magnet to take pictures inside your body. It makes loud sounds like BEEP or WHOOSH! You can tap the Play/Stop Sounds button to hear what it’s like.",
-        "You’ll lie very still on a bed while it moves into the tunnel. The machine takes pictures without touching you. Staying still helps the pictures turn out clear, just like in the Stay Still Challenge!",
+        "An MRI uses a magnet to take pictures inside your body. It does make loud sounds like BEEP and WHOOSH! You can tap the Play/Stop Sounds button to hear what it’s like so you know what to expect.",
+        "You’ll lie very still on a bed while it moves into the tunnel. The machine takes pictures without touching you. Staying still helps the pictures turn out clear. Practice staying still with the Stay Still Challenge!",
         "You’ve got this! The sounds might seem funny or loud, but they can’t hurt you. Close your eyes, think of something happy, and remember, your ScanBuddy is proud of you!"
     ),
     ScanType.CT to listOf(
@@ -79,13 +78,14 @@ val scanSlides: Map<ScanType, List<String>> = mapOf(
         "Ultrasounds don’t hurt, and the gel gets cleaned up quickly. You’ll do amazing, just relax and know ScanBuddy is cheering you on!"
     )
 )
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { ScanBuddyApp() }
     }
 }
+
+
 @Composable
 fun WelcomeLogo(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -109,7 +109,7 @@ fun WelcomeLogo(modifier: Modifier = Modifier) {
     AsyncImage(
         model = ImageRequest.Builder(context)
             .data(R.drawable.scanbuddy_logo)
-            .allowHardware(false) // required for animated images
+            .allowHardware(false)
             .build(),
         imageLoader = imageLoader,
         contentDescription = "Animated ScanBuddy Logo",
@@ -128,7 +128,7 @@ fun ScanBuddyApp() {
     val route = backStack?.destination?.route ?: "welcome"
 
     val title = when {
-        route == "welcome" -> "ScanBuddy" // not shown on welcome
+        route == "welcome" -> "ScanBuddy"
         route == "choose" -> "Select your scan:"
         route.startsWith("story/") -> "Scan Guide"
         route.startsWith("practice/") -> "Stay Still Challenge"
@@ -138,7 +138,6 @@ fun ScanBuddyApp() {
 
     MaterialTheme(colorScheme = lightColorScheme()) {
         Scaffold(
-            // ❌ Hide the top app bar on the welcome screen
             topBar = {
                 if (route != "welcome") {
                     CenterAlignedTopAppBar(
@@ -214,7 +213,6 @@ fun WelcomeScreen(onStart: () -> Unit) {
                 .fillMaxWidth()
                 .padding(top = 8.dp, bottom = 8.dp)
         )
-
         Spacer(Modifier.height(8.dp))
         Text(
             "Hi, I’m Your ScanBuddy!",
@@ -230,15 +228,15 @@ fun WelcomeScreen(onStart: () -> Unit) {
         )
         Spacer(Modifier.height(20.dp))
         Button(onClick = onStart) { Text("Let’s Begin!") }
-
-        Spacer(Modifier.height(28.dp))
+        Spacer(modifier = Modifier.weight(1f))
         Text(
-            "ScanBuddy is designed to help children and families learn what to expect during medical imaging.\n" +
-                    "It’s for educational and comfort purposes only and does not replace medical advice, diagnosis, or care from your healthcare provider.",
+            "ScanBuddy is designed to help children learn what to expect during medical imaging.\nIt’s for educational and comfort purposes only and does not replace medical advice or care from your healthcare provider.",
             fontSize = 12.sp,
             color = Color.Gray,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .fillMaxWidth()
         )
     }
 }
@@ -306,7 +304,8 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
         if (mediaPlayer?.isPlaying == true) {
             mediaPlayer?.stop(); mediaPlayer?.release(); mediaPlayer = null
         } else {
-            val resId = context.resources.getIdentifier(type.soundResName, "raw", context.packageName)
+            val resId =
+                context.resources.getIdentifier(type.soundResName, "raw", context.packageName)
             if (resId != 0) {
                 mediaPlayer = MediaPlayer.create(context, resId)
                 mediaPlayer?.isLooping = true
@@ -319,7 +318,7 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
         Modifier.fillMaxSize().padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("${type.title} Guide", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("${type.title}", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
 
         ElevatedCard(Modifier.fillMaxWidth().weight(1f)) {
@@ -343,6 +342,16 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (currentSlide == 0) {
+                    FilledTonalButton(onClick = { toggleSound() }) {
+                        Text("Play/Stop Sounds")
+                    }
+                }
+                if (currentSlide == 1) {
+                    FilledTonalButton(onClick = onPractice) {
+                        Text("Try the Stay Still Challenge →")
+                    }
+                }
             }
         }
 
@@ -356,32 +365,36 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
                 enabled = currentSlide > 0
             ) { Text("Back") }
 
-            FilledTonalButton(onClick = { toggleSound() }) { Text("Play/Stop Sounds") }
-
             Button(onClick = { if (currentSlide < slides.lastIndex) currentSlide++ else onDone() }) {
                 Text(if (currentSlide < slides.lastIndex) "Next" else "Finish")
             }
         }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onPractice) { Text("Try the Stay Still Challenge →") }
     }
 }
 
 @Composable
-fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFinished: () -> Unit) {
+fun StillnessPracticeScreen(
+    title: String,
+    secondsGoal: Int,
+    hint: String,
+    onFinished: () -> Unit
+) {
     val context = LocalContext.current
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val accelerometer = remember { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
 
     var stillSeconds by remember { mutableFloatStateOf(0f) }
     var isStill by remember { mutableStateOf(true) }
+    var started by remember { mutableStateOf(true) }
+    var finished by remember { mutableStateOf(false) }
     val movementThreshold = 0.7f
 
     DisposableEffect(accelerometer) {
+        if (accelerometer == null) return@DisposableEffect onDispose {}
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 val (ax, ay, az) = event.values
-                val magnitude = sqrt(ax*ax + ay*ay + az*az) - 9.81f
+                val magnitude = sqrt(ax * ax + ay * ay + az * az) - 9.81f
                 isStill = abs(magnitude) < movementThreshold
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -390,16 +403,20 @@ fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFin
         onDispose { sensorManager.unregisterListener(listener) }
     }
 
-    LaunchedEffect(isStill) {
-        while (true) {
+    LaunchedEffect(started, isStill) {
+        while (started && !finished) {
             delay(1000)
-            if (isStill) {
+            if (accelerometer == null) {
                 stillSeconds += 1f
-                if (stillSeconds >= secondsGoal) {
-                    onFinished()
-                    break
-                }
-            } else stillSeconds = 0f
+            } else if (isStill) {
+                stillSeconds += 1f
+            } else {
+                stillSeconds = 0f
+            }
+            if (stillSeconds >= secondsGoal) {
+                finished = true
+                onFinished()
+            }
         }
     }
 
@@ -417,12 +434,24 @@ fun StillnessPracticeScreen(title: String, secondsGoal: Int, hint: String, onFin
         Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(hint, textAlign = TextAlign.Center)
+        if (accelerometer == null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "(No motion sensor detected — we’ll use a simple $secondsGoal‑second timer)",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(16.dp))
         LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        Text("Stay still: ${stillSeconds.toInt()} / $secondsGoal s", fontWeight = FontWeight.Medium)
+        Text(
+            "Stay still: ${stillSeconds.toInt()} / $secondsGoal s",
+            fontWeight = FontWeight.Medium
+        )
         Spacer(Modifier.height(8.dp))
-        Text(if (isStill) "Great job. Keep going!" else "Oops! Try to freeze like a statue.")
+        Text(if (isStill || accelerometer == null) "Great job. Keep going!" else "Oops! Try to stay as still as a statue.")
     }
 }
 
