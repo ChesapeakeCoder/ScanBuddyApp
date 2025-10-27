@@ -58,22 +58,22 @@ enum class ScanType(
 
 val scanSlides: Map<ScanType, List<String>> = mapOf(
     ScanType.MRI to listOf(
-        "An MRI uses a magnet to take pictures inside your body. It does make loud sounds like BEEP and WHOOSH! You can tap the Play/Stop Sounds button to hear what it’s like so you know what to expect.",
+        "An MRI uses a magnet to take pictures inside your body. It does make loud sounds like BEEP and WHOOSH! You can press the button below to hear what it’s like so you know what to expect.",
         "You’ll lie very still on a bed while it moves into the tunnel. The machine takes pictures without touching you. Staying still helps the pictures turn out clear. Practice staying still with the Stay Still Challenge!",
         "You’ve got this! The sounds might seem funny or loud, but they can’t hurt you. Close your eyes, think of something happy, and remember, your ScanBuddy is proud of you!"
     ),
     ScanType.CT to listOf(
-        "A CT scanner looks like a big donut! It takes pictures of the inside of your body using soft whirring sounds. Tap the Play/Stop Sounds button to hear what the machine might sound like.",
+        "A CT scanner looks like a big donut! It takes pictures of the inside of your body using soft whirring sounds. Press the button below to hear what the machine might sound like.",
         "You’ll lie on a small bed that slides through the donut. It’s super quick! The best way to help is to stay still, just like in the Stay Still Challenge.",
         "Nice work! You’ll be in and out before you know it. Keep calm, stay still, and you’ll be helping your care team do their best work!"
     ),
     ScanType.XRAY to listOf(
-        "An X-ray takes quick pictures of your bones using a special camera. It’s fast and pretty quiet, no loud noises! You can press the Play/Stop Sounds button to hear a soft camera click.",
+        "An X-ray takes quick pictures of your bones using a special camera. It’s fast and pretty quiet, no loud noises! You can press the button below to hear a soft click.",
         "You might be asked to stand up, sit, or lie down while the picture is taken. Try not to wiggle, just like in the Stay Still Challenge. It only takes a moment!",
         "X-rays are quick and safe. You are doing a great job being brave!"
     ),
     ScanType.ULTRASOUND to listOf(
-        "An ultrasound uses sound waves to make pictures of the inside of your body. It’s quiet and gentle. You can press the Play/Stop Sounds button to hear a soft humming sound like the machine makes.",
+        "An ultrasound uses sound waves to make pictures of the inside of your body. It’s quiet and gentle. You can press the button below to hear a soft humming sound like the machine makes.",
         "A slippery gel goes on your skin so the camera can glide around. You might see wavy shapes on the screen! Stay still, just like in the Stay Still Challenge, to help make clear pictures.",
         "Ultrasounds don’t hurt, and the gel gets cleaned up quickly. You’ll do amazing, just relax and know ScanBuddy is cheering you on!"
     )
@@ -84,8 +84,6 @@ class MainActivity : ComponentActivity() {
         setContent { ScanBuddyApp() }
     }
 }
-
-
 @Composable
 fun WelcomeLogo(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -119,7 +117,6 @@ fun WelcomeLogo(modifier: Modifier = Modifier) {
             .then(modifier)
     )
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanBuddyApp() {
@@ -170,8 +167,11 @@ fun ScanBuddyApp() {
                     composable("story/{type}") { backStackEntry ->
                         val typeArg = backStackEntry.arguments?.getString("type") ?: "MRI"
                         val type = runCatching { ScanType.valueOf(typeArg) }.getOrDefault(ScanType.MRI)
+                        val startSlide = backStackEntry.savedStateHandle.get<Int>("resumeSlide")
+                        backStackEntry.savedStateHandle.remove<Int>("resumeSlide")
                         StoryScreen(
                             type = type,
+                            startSlide = startSlide,
                             onPractice = { nav.navigate("practice/${type.name}") },
                             onDone = { nav.navigate("congrats") }
                         )
@@ -188,7 +188,10 @@ fun ScanBuddyApp() {
                                 ScanType.XRAY -> "Freeze for a quick photo!"
                                 ScanType.ULTRASOUND -> "Relax and watch the wavy movie!"
                             },
-                            onFinished = { nav.navigate("congrats") }
+                            onFinished = {
+                                nav.previousBackStackEntry?.savedStateHandle?.set("resumeSlide", 2)
+                                nav.navigateUp()
+                            }
                         )
                     }
                     composable("congrats") { CongratsScreen(onRestart = { nav.navigate("choose") }) }
@@ -197,7 +200,6 @@ fun ScanBuddyApp() {
         }
     }
 }
-
 @Composable
 fun WelcomeScreen(onStart: () -> Unit) {
     Column(
@@ -240,7 +242,6 @@ fun WelcomeScreen(onStart: () -> Unit) {
         )
     }
 }
-
 @Composable
 fun ChooseScanScreen(onSelect: (ScanType) -> Unit) {
     Box(
@@ -292,10 +293,15 @@ fun ChooseScanScreen(onSelect: (ScanType) -> Unit) {
 }
 
 @Composable
-fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
+fun StoryScreen(type: ScanType, startSlide: Int? = null, onPractice: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
-    var currentSlide by remember { mutableIntStateOf(0) }
     val slides = scanSlides[type] ?: emptyList()
+    var currentSlide by remember { mutableIntStateOf(0) }
+    LaunchedEffect(startSlide) {
+        if (startSlide != null) {
+            currentSlide = startSlide.coerceIn(0, (slides.size - 1).coerceAtLeast(0))
+        }
+    }
 
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     DisposableEffect(Unit) { onDispose { mediaPlayer?.release(); mediaPlayer = null } }
@@ -371,7 +377,6 @@ fun StoryScreen(type: ScanType, onPractice: () -> Unit, onDone: () -> Unit) {
         }
     }
 }
-
 @Composable
 fun StillnessPracticeScreen(
     title: String,
@@ -434,15 +439,25 @@ fun StillnessPracticeScreen(
         Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(hint, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(16.dp))
+        Image(
+            painter = painterResource(id = R.drawable.scanbuddy_statue),
+            contentDescription = "ScanBuddy statue",
+            modifier = Modifier
+                .fillMaxWidth(0.6f)
+                .aspectRatio(1f)
+        )
+        Spacer(Modifier.height(16.dp))
+
         if (accelerometer == null) {
-            Spacer(Modifier.height(8.dp))
             Text(
-                "(No motion sensor detected — we’ll use a simple $secondsGoal‑second timer)",
+                "(No motion sensor detected — we’ll use a simple $secondsGoal-second timer)",
                 fontSize = 12.sp,
                 color = Color.Gray,
                 textAlign = TextAlign.Center
             )
         }
+
         Spacer(Modifier.height(16.dp))
         LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
@@ -454,7 +469,6 @@ fun StillnessPracticeScreen(
         Text(if (isStill || accelerometer == null) "Great job. Keep going!" else "Oops! Try to stay as still as a statue.")
     }
 }
-
 @Composable
 fun CongratsScreen(onRestart: () -> Unit) {
     Column(
