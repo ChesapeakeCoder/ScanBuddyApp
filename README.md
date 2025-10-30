@@ -33,5 +33,3 @@ Select a device (emulator or phone) from Device Manager.
 Run the app.
 To generate a signed release APK:
 Android Studio -> Build -> Generate Signed App Bundle / APK -> APK (Release)
-
-SensorManager (accelerometer)
