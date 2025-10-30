@@ -63,7 +63,7 @@ val scanSlides: Map<ScanType, List<String>> = mapOf(
         "You’ve got this! The sounds might seem funny or loud, but they can’t hurt you. Close your eyes, think of something happy, and remember, your ScanBuddy is proud of you!"
     ),
     ScanType.CT to listOf(
-        "A CT scanner looks like a big donut! It takes pictures of the inside of your body using soft whirring sounds. Press the button below to hear what the machine might sound like.",
+        "A CT scanner is a big machine shaped like a donut. Inside the ring is a camera that uses a tiny bit of X-ray energy to take lots of pictures. A computer stacks all those pictures together to make a 3D image of what’s inside your body. You just lie still while the table moves you through the donut, and the machine spins, making whirring sounds. Press the button below to hear what the machine might sound like.",
         "You’ll lie on a small bed that slides through the donut. It’s super quick! The best way to help is to stay still, just like in the Stay Still Challenge.",
         "Nice work! You’ll be in and out before you know it. Keep calm, stay still, and you’ll be helping your care team do their best work!"
     ),
